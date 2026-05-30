@@ -1,0 +1,62 @@
+name: Build Patched AutoLinker
+
+on:
+  workflow_dispatch:
+
+env:
+  SOURCE_ZIP: AutoLinker-stability-patched-source.zip
+  BUILD_CONFIGURATION: fne_release
+  BUILD_PLATFORM: Win32
+  LANG: zh_CN.UTF-8
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set System Locale to Chinese
+        run: |
+          Set-WinSystemLocale zh-CN
+
+      - name: Extract patched source
+        run: |
+          Expand-Archive -Path "${{ env.SOURCE_ZIP }}" -DestinationPath patched-source -Force
+          Get-ChildItem patched-source
+        shell: pwsh
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Set Version
+        working-directory: patched-source/AutoLinker-master
+        run: |
+          (Get-Content "./src/AutoLinker.h" -Encoding utf8BOM -Raw) |
+          ForEach-Object { $_ -replace "0\.0\.0", "stability" } |
+          Set-Content "./src/AutoLinker.h" -Encoding utf8BOM
+        shell: pwsh
+
+      - name: Set Build
+        working-directory: patched-source/AutoLinker-master
+        run: |
+          (Get-Content "./src/AutoLinker.h" -Encoding utf8BOM -Raw) |
+          ForEach-Object { $_ -replace "1000000", "$env:GITHUB_RUN_NUMBER" } |
+          Set-Content "./src/AutoLinker.h" -Encoding utf8BOM
+        shell: pwsh
+
+      - name: Build
+        working-directory: patched-source/AutoLinker-master
+        run: |
+          msbuild AutoLinker.vcxproj -t:rebuild -verbosity:normal -property:Configuration=${{ env.BUILD_CONFIGURATION }} -property:Platform=${{ env.BUILD_PLATFORM }}
+
+      - name: Package
+        run: |
+          Compress-Archive -Path "patched-source/AutoLinker-master/bin/${{ env.BUILD_CONFIGURATION }}/AutoLinker.fne" -DestinationPath AutoLinker-stability-${{ github.run_number }}.zip -Force
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoLinker-stability-${{ github.run_number }}
+          path: AutoLinker-stability-${{ github.run_number }}.zip
