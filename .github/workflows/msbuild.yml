@@ -1,0 +1,66 @@
+name: MSBuild
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+    - '*'
+
+env:
+  SOLUTION_FILE_PATH: .
+  BUILD_CONFIGURATION: fne_release
+  BUILD_PLATFORM: Win32
+  LANG: zh_CN.UTF-8
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set System Locale to Chinese
+      run: |
+        Set-WinSystemLocale zh-CN
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Set Version
+      run: |
+        (Get-Content "./src/AutoLinker.h" -Encoding utf8BOM -Raw) |
+        ForEach-Object { $_ -replace "0\.0\.0", "$env:GITHUB_REF_NAME" } |
+        Set-Content "./src/AutoLinker.h" -Encoding utf8BOM
+        Get-Content "./src/AutoLinker.h" -Encoding utf8BOM | Out-String | Write-Output
+      shell: pwsh
+
+    - name: Set Build
+      run: |
+        (Get-Content "./src/AutoLinker.h" -Encoding utf8BOM -Raw) |
+        ForEach-Object { $_ -replace "1000000", "$env:GITHUB_RUN_NUMBER" } |
+        Set-Content "./src/AutoLinker.h" -Encoding utf8BOM
+        Get-Content "./src/AutoLinker.h" -Encoding utf8BOM | Out-String | Write-Output
+      shell: pwsh
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        msbuild ${{env.SOLUTION_FILE_PATH}}/AutoLinker.vcxproj -t:rebuild -verbosity:normal -property:Configuration=${{env.BUILD_CONFIGURATION}} -property:Platform=${{env.BUILD_PLATFORM}}
+
+    - name: Compress-Archive
+      run: |
+        powershell Compress-Archive -Path "bin/${{env.BUILD_CONFIGURATION}}/AutoLinker.fne" -DestinationPath AutoLinker-${{github.ref_name}}.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AutoLinker-${{github.ref_name}}
+        path: AutoLinker-${{github.ref_name}}.zip
+
+    - name: Create a Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "AutoLinker-${{github.ref_name}}.zip"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        generateReleaseNotes: true
