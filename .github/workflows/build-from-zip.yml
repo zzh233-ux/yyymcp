@@ -1,10 +1,11 @@
-name: Build Patched AutoLinker
+name: Build mymcp
 
 on:
   workflow_dispatch:
 
 env:
   SOURCE_ZIP: AutoLinker-stability-patched-source.zip
+  ARTIFACT_BASENAME: mymcp
   BUILD_CONFIGURATION: fne_release
   BUILD_PLATFORM: Win32
   LANG: zh_CN.UTF-8
@@ -52,11 +53,12 @@ jobs:
 
       - name: Package
         run: |
-          Compress-Archive -Path "patched-source/AutoLinker-master/bin/${{ env.BUILD_CONFIGURATION }}/AutoLinker.fne" -DestinationPath AutoLinker-stability-${{ github.run_number }}.zip -Force
+          Copy-Item -LiteralPath "patched-source/AutoLinker-master/bin/${{ env.BUILD_CONFIGURATION }}/AutoLinker.fne" -Destination "${{ env.ARTIFACT_BASENAME }}.fne" -Force
+          Compress-Archive -Path "${{ env.ARTIFACT_BASENAME }}.fne" -DestinationPath "${{ env.ARTIFACT_BASENAME }}-${{ github.run_number }}.zip" -Force
         shell: pwsh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoLinker-stability-${{ github.run_number }}
-          path: AutoLinker-stability-${{ github.run_number }}.zip
+          name: ${{ env.ARTIFACT_BASENAME }}-${{ github.run_number }}
+          path: ${{ env.ARTIFACT_BASENAME }}-${{ github.run_number }}.zip
