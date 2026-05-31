@@ -5,7 +5,7 @@ on:
 
 env:
   SOURCE_ZIP: AutoLinker-stability-patched-source.zip
-  ARTIFACT_BASENAME: mymcp
+  ARTIFACT_BASENAME: AutoLinker-compatible-v2
   BUILD_CONFIGURATION: fne_release
   BUILD_PLATFORM: Win32
   LANG: zh_CN.UTF-8
